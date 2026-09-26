@@ -48,6 +48,67 @@ function offer(id: string, roundId: string, role: string, quantity = 300, unitPr
   return action(id, roundId, role, { type: 'offer', quantity, unitPricePence });
 }
 const human = (id: string, text: string): Entry => ({ id, kind: 'message', author: 'user', text });
+const lot = (roundId: string) => `LD-${roundId.slice(0, 8).toUpperCase()}`;
+function readable(id: string, role: string, text: string): Entry {
+  const member = members.find(member => member.role === role)!;
+  return { id, kind: 'send-message', author: { id: member.id, name: member.name }, text };
+}
+
+it('runs readable native offers through human approval, a verified receipt and real departures', async () => {
+  const h = harness(); const { roundId } = await h.start();
+  const entries = [readable('offer', 'denim', `I can take the whole lot.\nOffer for lot ${lot(roundId)}: 300 units at GBP 30.01 each.`)];
+  h.entries(entries); await h.controller.tick();
+  expect((await h.controller.state('room-1')).offers[0]).toMatchObject({ quantity: 300, unitPricePence: 3001, totalPence: 900300 });
+  entries.push(human('approve', 'approve'));
+  h.entries(entries); await h.controller.tick();
+  const approved = await h.controller.state('room-1');
+  const receipt = `Deal confirmed for lot ${lot(roundId)}: 300 units for GBP 9003.00. Confirmation C-${approved.approval.id.slice(0, 8).toUpperCase()}.`;
+  entries.push(
+    readable('wrong-author', 'bargain', receipt),
+    readable('wrong-total', 'merchant', receipt.replace('9003.00', '9000.00')),
+    readable('wrong-quantity', 'merchant', receipt.replace('300 units', '299 units')),
+    readable('wrong-reference', 'merchant', receipt.replace(/C-[A-F0-9]{8}/, 'C-WRONGREF')),
+  );
+  h.entries(entries); await h.controller.tick();
+  expect((await h.controller.state('room-1')).status).toBe('awaiting-ack');
+  expect(h.removals()).toHaveLength(0);
+  entries.push(readable('receipt', 'merchant', `Denim takes all 300. No real order has been placed.\n${receipt}`));
+  h.entries(entries); await h.controller.tick();
+  const closed = await h.controller.state('room-1');
+  expect(closed.approval.acknowledged).toBe(true);
+  expect(closed.status).toBe('closed');
+  expect(closed.members.filter((member: { removal?: string }) => member.removal === 'removed')).toHaveLength(2);
+});
+
+it('accepts readable self-withdrawal only from that reseller and removes their own offer', async () => {
+  const h = harness(); const { roundId } = await h.start();
+  const withdrawal = `I withdraw from lot ${lot(roundId)}: The margin does not work for me.`;
+  h.entries([readable('offer', 'denim', `Offer for lot ${lot(roundId)}: 300 units at GBP 30.00 each.`), readable('merchant-cannot-withdraw', 'merchant', withdrawal)]);
+  await h.controller.tick(); expect((await h.controller.state('room-1')).offers).toHaveLength(1);
+  h.entries([readable('withdraw', 'denim', withdrawal)]); await h.controller.tick();
+  const state = await h.controller.state('room-1');
+  expect(state.offers).toHaveLength(0);
+  expect(state.members.find((member: { role: string }) => member.role === 'denim')).toMatchObject({ state: 'withdrawn', removal: 'removed', reason: 'The margin does not work for me.' });
+});
+
+it('rejects quoted, stale, streaming, malformed, duplicated and mixed-format readable actions', async () => {
+  const h = harness(); const { roundId } = await h.start();
+  const line = `Offer for lot ${lot(roundId)}: 300 units at GBP 30.00 each.`;
+  const badTexts = [
+    '> ' + line, '```\n' + line + '\n```', line + '\nStill considering.',
+    line.replace(lot(roundId), 'LD-STALELOT'), line.replace('30.00', '30.001'),
+    line.replace('300 units', '2.5 units'), line + '\n' + line,
+    line + '\n' + offer('legacy', roundId, 'denim').text,
+    offer('legacy', roundId, 'denim').text + '\n' + line,
+  ];
+  const valid = readable('valid', 'denim', line);
+  h.entries([...badTexts.map((text, index) => readable(`bad-${index}`, 'denim', text)),
+    { ...valid, id: 'unknown', author: { id: 'intruder', name: 'Denim' } },
+    { ...valid, id: 'human', author: 'user' },
+    { ...valid, id: 'tool', kind: 'tool-result' }, { ...valid, streaming: true }]);
+  await h.controller.tick(); expect((await h.controller.state('room-1')).offers).toEqual([]);
+  h.entries([valid]); await h.controller.tick(); expect((await h.controller.state('room-1')).offers).toHaveLength(1);
+});
 
 it('verifies exactly four role identities and excludes the historical baseline', async () => {
   const h = harness();
@@ -57,9 +118,10 @@ it('verifies exactly four role identities and excludes the historical baseline',
   expect(round.startedAt).toBe('2026-09-26T00:00:00.000Z');
   expect(round).not.toHaveProperty('seenIds');
   const prompt = h.sends()[0][0][4];
-  expect(prompt).toContain(round.roundId);
+  expect(prompt).toContain(`LD-${round.roundId.slice(0, 8).toUpperCase()}`);
   expect(prompt).toContain('Choose your own offers');
-  expect(prompt).toContain('quantity":YOUR_QUANTITY');
+  expect(prompt).toContain('QUANTITY units at GBP PRICE each.');
+  expect(prompt).not.toContain('[[LASTDROP:');
   h.entries([human('past-approval', 'approve'), offer('new-offer', round.roundId, 'denim')]);
   await h.controller.tick();
   expect((await h.controller.state('room-1')).status).toBe('negotiating');
@@ -158,7 +220,8 @@ it('requires exact fresh human approval, freezes the then-current best and sends
   expect(state.status).toBe('awaiting-ack');
   expect(state.approval.acknowledged).toBe(false);
   expect(h.sends()).toHaveLength(2);
-  expect(h.sends()[1][0][4]).toContain(state.approval.id);
+  expect(h.sends()[1][0][4]).toContain(`C-${state.approval.id.slice(0, 8).toUpperCase()}`);
+  expect(h.sends()[1][0][4]).not.toContain('[[LASTDROP:');
   expect(h.removals()).toHaveLength(0);
 });
 

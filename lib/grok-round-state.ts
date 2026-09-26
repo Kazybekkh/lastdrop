@@ -73,7 +73,7 @@ export function parseRoundState(value: unknown, botId: string): RoundState | nul
 
 export function visibleGroupMessage(text: string): string {
   if (text.startsWith("Start a NEW fictional Last Drop negotiation.")) text = text.split("\nEvery buyer offer MUST")[0];
-  if (text.startsWith("HUMAN APPROVED fictional allocation for round ")) {
+  if (/^HUMAN APPROVED fictional allocation for (?:round|lot) /.test(text)) {
     text = "Approved demo allocation.\n" + text.slice(text.indexOf("\n") + 1).split("\n@")[0];
   }
   return text.replace(/\[\[LASTDROP:\s*\{[\s\S]*?\}\]\]/g, "").trim();

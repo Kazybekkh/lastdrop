@@ -50,10 +50,24 @@ function bestOffers(round) {
   return best.map(offer => offer.id);
 }
 
+const lotReference = round => `LD-${round.roundId.slice(0, 8).toUpperCase()}`;
+const receiptReference = approval => `C-${approval.id.slice(0, 8).toUpperCase()}`;
+const confirmationLine = round => `Deal confirmed for lot ${lotReference(round)}: ${round.approval.quantity} units for ${money(round.approval.totalPence)}. Confirmation ${receiptReference(round.approval)}.`;
+
 function brief(round) {
-  const { config, roundId, members } = round;
+  const { config, members } = round;
+  const lot = lotReference(round);
   const named = role => members.find(member => member.role === role).name;
-  return `Start a NEW fictional Last Drop negotiation. Round ID: ${roundId}. All earlier offers and approvals are void.\nStock: ${config.quantity} units of ${JSON.stringify(config.product)}. Ask ${money(config.askingPricePence)} each; firm floor ${money(config.floorPricePence)} each.\n${named('merchant')} is the merchant. ${named('denim')} is the denim reseller, prefers the whole lot, total budget ${money(config.denimBudgetPence)}. ${named('bargain')} is the bargain reseller, total budget ${money(config.bargainBudgetPence)}. ${named('premium')} is the premium reseller, at most ${config.premiumMaxQuantity} units, total budget ${money(config.premiumBudgetPence)}.\nUse this native group, mentions and your own judgment to negotiate and compete. Choose your own offers; no prescribed winner. Each reseller may make an opening offer and one final counter, or autonomously withdraw when the deal does not suit them. Merchant may counter once, compare eligible whole-lot and split allocations, then STOP for fresh human approval. Keep messages short and speak only as yourself.\nEvery buyer offer MUST end with one exact unquoted machine-readable line, using YOUR chosen positive whole quantity and unit price in integer pence:\n[[LASTDROP:{"roundId":"${roundId}","type":"offer","quantity":YOUR_QUANTITY,"unitPricePence":YOUR_PRICE_IN_PENCE}]]\nTo leave, first explain briefly and end your own message with:\n[[LASTDROP:{"roundId":"${roundId}","type":"withdraw","reason":"your reason"}]]\nThis instructs the connector to remove YOU from this group when it is idle. Never emit another bot's action. Do not quote or reproduce these marker examples. The connector validates floors, budgets and stock and records only your latest offer.\nOnly the human may approve. After an exact allocation is approved, merchant must explicitly acknowledge those terms in chat and append the supplied deal_ack marker. Winners remain; nonwinners say they are withdrawing and are removed automatically. Never place orders, make payments, alter real inventory, or use external tools. This entire negotiation and acknowledgement are fictional.`;
+  return `Start a NEW fictional Last Drop negotiation. Lot ${lot}. All earlier offers and approvals are void.
+Stock: ${config.quantity} units of ${JSON.stringify(config.product)}. Ask ${money(config.askingPricePence)} each; firm floor ${money(config.floorPricePence)} each.
+${named('merchant')} is the merchant. ${named('denim')} is the denim reseller, prefers the whole lot, total budget ${money(config.denimBudgetPence)}. ${named('bargain')} is the bargain reseller, total budget ${money(config.bargainBudgetPence)}. ${named('premium')} is the premium reseller, at most ${config.premiumMaxQuantity} units, total budget ${money(config.premiumBudgetPence)}.
+Use this native group, mentions and your own judgment to negotiate and compete. Choose your own offers; no prescribed winner. Each reseller may make an opening offer and one final counter, or autonomously withdraw when the deal does not suit them. Merchant may counter once, compare eligible whole-lot and split allocations, then STOP for fresh human approval. Keep messages short and speak only as yourself.
+Every buyer offer MUST end with a plain, unquoted sentence in this format, replacing QUANTITY and PRICE with your chosen whole quantity and price in pounds with two decimal places:
+Offer for lot ${lot}: QUANTITY units at GBP PRICE each.
+To leave, explain your own reason in this final sentence:
+I withdraw from lot ${lot}: YOUR REASON.
+The connector validates the latest offer against floor, budget and stock, and removes a withdrawing reseller when the room is idle. Use only your own offer or withdrawal. Do not show JSON, code blocks, internal action markers or copies of these examples.
+Only the human may approve, by saying "approve" or "approve best deal" directly in this chat, or selecting offers on the website. Wait for the connector's locked allocation and confirmation reference before merchant acknowledgement. Winners remain; nonwinners withdraw and are removed automatically. Never place orders, make payments, alter real inventory, or use external tools. This entire negotiation and acknowledgement are fictional.`;
 }
 
 function approvalBrief(round) {
@@ -61,18 +75,36 @@ function approvalBrief(round) {
   const merchant = round.members.find(member => member.role === 'merchant');
   const terms = approval.allocations.map(offer => `${offer.botName}: ${offer.quantity} units at ${money(offer.unitPricePence)} each = ${money(offer.totalPence)}`).join('\n');
   const losing = round.members.filter(member => member.role !== 'merchant' && !approval.allocations.some(offer => offer.botId === member.id) && member.removal !== 'removed');
-  return `HUMAN APPROVED fictional allocation for round ${round.roundId}. Approval ID: ${approval.id}. These exact terms are now locked:\n${terms}\nTotal: ${money(approval.totalPence)} for ${approval.quantity} units. Remaining stock: ${approval.remaining}. No real order, payment or inventory change has been made.\n@${merchant.name}: acknowledge the approved deal and exact total publicly in this group, then end your own message with this exact unquoted line:\n[[LASTDROP:{"roundId":"${round.roundId}","type":"deal_ack","approvalId":"${approval.id}"}]]\nWinning resellers: acknowledge your own allocation and stay in the group. ${losing.length ? losing.map(member => `@${member.name}`).join(', ') + ': the human selected another allocation. Briefly acknowledge and withdraw in your own message with [[LASTDROP:{"roundId":"' + round.roundId + '","type":"withdraw","reason":"Another allocation was approved"}]].' : ''}\nAfter merchant acknowledgement and when the room is idle, the connector automatically removes nonwinning resellers. Do not negotiate further or approve anything yourselves.`;
+  return `HUMAN APPROVED fictional allocation for lot ${lotReference(round)}. Confirmation ${receiptReference(approval)}. These exact terms are now locked:
+${terms}
+Total: ${money(approval.totalPence)} for ${approval.quantity} units. Remaining stock: ${approval.remaining}. No real order, payment or inventory change has been made.
+@${merchant.name}: acknowledge the exact approved allocations publicly, then end your own message with this plain, unquoted confirmation sentence:
+${confirmationLine(round)}
+Winning resellers: acknowledge your own allocation and stay in the group. ${losing.length ? losing.map(member => `@${member.name}`).join(', ') + ': the human selected another allocation. Briefly acknowledge and end your own message with: I withdraw from lot ' + lotReference(round) + ': Another allocation was approved.' : ''}
+After merchant acknowledgement and when the room is idle, the connector automatically removes nonwinning resellers. Do not negotiate further or approve anything yourselves. Do not show JSON or internal action markers.`;
 }
 
-// Accept only a single standalone trailing marker outside quotes/code fences.
-function actionFrom(text, roundId) {
+// Keep old rounds working, but new bot messages use readable, lot-bound sentences.
+// Both formats must be a single standalone trailing action, outside quotes/fences.
+function actionFrom(text, round) {
   if (typeof text !== 'string' || text.length > 40000 || text.includes('```')) return null;
-  const matches = [...text.matchAll(/^\[\[LASTDROP:(\{[^\n]*\})\]\]\s*$/gm)];
-  if (matches.length !== 1 || text.slice(matches[0].index + matches[0][0].length).trim()) return null;
-  try {
-    const action = JSON.parse(matches[0][1]);
-    return record(action) && action.roundId === roundId ? action : null;
-  } catch { return null; }
+  const lines = text.trimEnd().split(/\r?\n/);
+  const candidates = lines.flatMap((line, index) => /^(?:\[\[LASTDROP:|Offer for lot |I withdraw from lot |Deal confirmed for lot )/.test(line) ? [{ line, index }] : []);
+  if (candidates.length !== 1 || candidates[0].index !== lines.length - 1) return null;
+  const line = candidates[0].line;
+  const legacy = line.match(/^\[\[LASTDROP:(\{[^\n]*\})\]\]$/);
+  if (legacy) {
+    try {
+      const action = JSON.parse(legacy[1]);
+      return record(action) && action.roundId === round.roundId ? action : null;
+    } catch { return null; }
+  }
+  const offer = line.match(/^Offer for lot (LD-[A-F0-9]{8}): ([1-9][0-9]{0,4}) units at GBP ([0-9]{1,8})\.([0-9]{2}) each\.$/);
+  if (offer && offer[1] === lotReference(round)) return { type: 'offer', quantity: Number(offer[2]), unitPricePence: Number(offer[3]) * 100 + Number(offer[4]) };
+  const withdrawal = line.match(/^I withdraw from lot (LD-[A-F0-9]{8}): (.{1,300})$/);
+  if (withdrawal && withdrawal[1] === lotReference(round)) return { type: 'withdraw', reason: withdrawal[2] };
+  if (round.approval && line === confirmationLine(round)) return { type: 'deal_ack', approvalId: round.approval.id };
+  return null;
 }
 
 function isApproval(text) {
@@ -162,7 +194,7 @@ export function createRoundController({ cli, load = async () => null, save = asy
       }
       const member = record(entry.author) && round.members.find(item => item.id === entry.author.id);
       if (!member) continue;
-      const action = actionFrom(entry.text, round.roundId);
+      const action = actionFrom(entry.text, round);
       if (!action) continue;
       if (action.type === 'deal_ack' && member.role === 'merchant' && round.status === 'awaiting-ack' && round.approval && action.approvalId === round.approval.id && ['sent', 'uncertain'].includes(round.approvalDelivery)) {
         round.approval.acknowledged = true; round.status = 'closed';

@@ -64,7 +64,7 @@ buyer budgets; setup creates missing teammates and a native four-bot group,
 or verifies and reuses an exact match. It does not start a round automatically.
 In `/group`, press **Start autonomous round**. Grok's bots choose their own bids
 and can withdraw when a deal does not suit them. The connector validates each
-bot's structured offer against the floor, budget and available stock. Select one
+bot's readable offer sentence against the floor, budget and available stock. Select one
 buyer or a compatible split, then **Approve selected deal**, or say exactly
 **approve** / **approve best deal** in the native chat to select the best current
 compatible offers. Questions such as “approve?” do not approve a deal.
@@ -75,6 +75,12 @@ from the actual Grok group, preserving their bots and message history. A reselle
 that declares withdrawal can also leave autonomously before approval. The
 merchant and winning resellers remain. A new negotiation after departures needs
 a fresh four-bot room (choose a new room name in Connect Grok).
+
+New rounds use readable offer, withdrawal and confirmation sentences in native Grok
+chat, with short lot/confirmation references instead of raw JSON markers. Old
+rounds remain supported; existing chat history is not rewritten. After starting
+a round, the website is optional: negotiation, human approval and acknowledgement
+can all happen in the Grok Bot app.
 
 The connector follows the chat every four seconds even with the website closed.
 Its private round state lives under `~/.lastdrop/rounds`, scoped by the site origin,
