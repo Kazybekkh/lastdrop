@@ -1,22 +1,11 @@
 import { parseIncomingEvent, type AgentId } from "@/lib/commerce";
-import { GrokError, grokConfigured, grokTurn } from "@/lib/grok";
+import { GrokError, grokTurn } from "@/lib/grok";
 
 export const dynamic = "force-dynamic";
 
 const AGENTS: AgentId[] = ["merchant", "denim", "bargain", "premium"];
 
 export async function POST(request: Request) {
-  if (!grokConfigured()) {
-    return Response.json(
-      {
-        ok: false,
-        reason: "replay_only",
-        message: "No XAI_API_KEY. This room plays the recorded round.",
-      },
-      { status: 409 },
-    );
-  }
-
   const body = (await request.json().catch(() => null)) as {
     agentId?: unknown;
     floorPricePence?: unknown;

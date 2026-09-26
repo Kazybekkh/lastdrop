@@ -15,6 +15,7 @@ import {
 } from "@/lib/shop";
 import { readPostedOrder } from "@/lib/shop-session";
 import { AppNav } from "./app-nav";
+import { ProductImage } from "./product-image";
 
 export function ShopAdmin() {
   const [posted, setPosted] = useState<ShopOrder | null>(null);
@@ -38,38 +39,43 @@ export function ShopAdmin() {
       <main className="office-main">
         {hero && heroRead && (
           <section className={heroRead.dead ? "dead-hero" : "dead-hero clear"}>
-            <p className="office-kicker">{heroRead.dead ? "No buyer yet" : "Matched"}</p>
-            <h1>{hero.title}</h1>
-            <p className="dead-lede">
-              {heroRead.dead
-                ? `${heroRead.sold} sold in ${WINDOW_WEEKS} weeks. ${heroRead.onHand} still on hand, about ${Math.round(heroRead.weeksOfCover ?? 0)} weeks of cover. ${formatGbpExact(heroRead.costTiedPence)} is tied up at cost. The oxford and the jean are moving. This lot is not.`
-                : `${heroRead.onHand} left on hand. The wholesale docket has been written into the order book.`}
-            </p>
-            <dl className="metric-row">
-              <div>
-                <dt>On hand</dt>
-                <dd>{heroRead.onHand}</dd>
-              </div>
-              <div>
-                <dt>Sell-through</dt>
-                <dd>{heroRead.onHand === 0 ? "Out" : `${Math.round(heroRead.sellThrough * 100)}%`}</dd>
-              </div>
-              <div>
-                <dt>Retail</dt>
-                <dd>{formatGbpSpeech(heroRead.retailPence)}</dd>
-              </div>
-              <div>
-                <dt>SKU</dt>
-                <dd>{heroRead.sku}</dd>
-              </div>
-            </dl>
-            {heroRead.dead ? (
-              <Link className="primary office-cta" href="/floor">
-                Pitch this lot
-              </Link>
-            ) : (
-              <p className="cleared">Matched. The wholesale order is in the book below.</p>
-            )}
+            <Link href={`/shop/products/${hero.handle}`} className="dead-hero-visual" aria-label={`View ${hero.title}`}>
+              <ProductImage handle={hero.handle} sizes="(max-width: 640px) calc(100vw - 80px), 320px" priority />
+            </Link>
+            <div className="dead-hero-copy">
+              <p className="office-kicker">{heroRead.dead ? "No buyer yet" : "Matched"}</p>
+              <h1>{hero.title}</h1>
+              <p className="dead-lede">
+                {heroRead.dead
+                  ? `${heroRead.sold} sold in ${WINDOW_WEEKS} weeks. ${heroRead.onHand} still on hand, about ${Math.round(heroRead.weeksOfCover ?? 0)} weeks of cover. ${formatGbpExact(heroRead.costTiedPence)} is tied up at cost. The oxford and the jean are moving. This lot is not.`
+                  : `${heroRead.onHand} left on hand. The wholesale docket has been written into the order book.`}
+              </p>
+              <dl className="metric-row">
+                <div>
+                  <dt>On hand</dt>
+                  <dd>{heroRead.onHand}</dd>
+                </div>
+                <div>
+                  <dt>Sell-through</dt>
+                  <dd>{heroRead.onHand === 0 ? "Out" : `${Math.round(heroRead.sellThrough * 100)}%`}</dd>
+                </div>
+                <div>
+                  <dt>Retail</dt>
+                  <dd>{formatGbpSpeech(heroRead.retailPence)}</dd>
+                </div>
+                <div>
+                  <dt>SKU</dt>
+                  <dd>{heroRead.sku}</dd>
+                </div>
+              </dl>
+              {heroRead.dead ? (
+                <Link className="primary office-cta" href="/floor">
+                  Pitch this lot
+                </Link>
+              ) : (
+                <p className="cleared">Matched. The wholesale order is in the book below.</p>
+              )}
+            </div>
           </section>
         )}
 
@@ -80,10 +86,13 @@ export function ShopAdmin() {
               const read = readProduct(product);
               return (
                 <li key={product.id} className={read.dead ? "product-row is-dead" : "product-row"}>
-                  <div>
-                    <strong>{product.title}</strong>
-                    <span>{product.productType} · {product.location}</span>
-                  </div>
+                  <Link href={`/shop/products/${product.handle}`} className="product-identity">
+                    <ProductImage handle={product.handle} className="product-thumbnail" sizes="64px" />
+                    <div>
+                      <strong>{product.title}</strong>
+                      <span>{product.productType} · {product.location}</span>
+                    </div>
+                  </Link>
                   <p>{read.onHand} on hand</p>
                   <p>{read.sold} sold</p>
                   <p>{read.weeksOfCover == null ? "No rate" : `${Math.round(read.weeksOfCover)} wks cover`}</p>

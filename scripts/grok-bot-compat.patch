@@ -1,0 +1,61 @@
+--- a/scripts/grokbot.py
++++ b/scripts/grokbot.py
+@@ -7,6 +7,7 @@
+ import base64
+ import hashlib
+ import json
++import plistlib
+ import subprocess
+ import sys
+ import time
+@@ -17,7 +18,18 @@
+ 
+ SECRETS_PATH = Path.home() / "Library/Application Support/Grok Bot/sand-secrets.json"
+ BACKEND = "https://api2.cursor.sh"
+-CLIENT_VERSION = "0.18.0"
++def _client_version() -> str:
++    for app_dir in (Path("/Applications"), Path.home() / "Applications"):
++        info = app_dir / "Grok Bot.app/Contents/Info.plist"
++        if info.exists():
++            with info.open("rb") as handle:
++                version = plistlib.load(handle).get("CFBundleShortVersionString")
++            if isinstance(version, str) and version:
++                return version
++    return "0.18.0"
++
++
++CLIENT_VERSION = _client_version()
+ 
+ 
+ class GrokBotError(RuntimeError):
+@@ -36,10 +48,27 @@
+         )
+     secrets = json.loads(SECRETS_PATH.read_text())
+     stored = secrets.get("cursor-access-token")
+-    if not isinstance(stored, str) or not stored.startswith("scoped:v1:"):
++    # Recent Grok Bot releases keep scoped secrets under the active account.
++    # Never select an arbitrary saved account or fall back to a stale legacy
++    # token when the multi-account store exists.
++    if "cursor-accounts" in secrets:
++        try:
++            accounts = json.loads(secrets["cursor-accounts"])
++            active = accounts.get("active")
++            stored = accounts.get("accounts", {}).get(active, {}).get("cursor-access-token")
++        except (ValueError, TypeError, AttributeError):
++            raise GrokBotError("Grok Bot account storage is invalid. Open Grok Bot and sign in with Cursor first.") from None
++    if not isinstance(stored, str) or not stored:
+         raise GrokBotError("Grok Bot access token is missing or in an unexpected format.")
+-    rest = stored[len("scoped:v1:") :]
+-    raw = base64.b64decode(rest[rest.index(":") + 1 :])
++    # Account entries store Electron safeStorage ciphertext directly; older
++    # single-account entries wrap that same ciphertext with an account scope.
++    try:
++        if stored.startswith("scoped:v1:"):
++            rest = stored[len("scoped:v1:") :]
++            stored = rest[rest.index(":") + 1 :]
++        raw = base64.b64decode(stored, validate=True)
++    except ValueError:
++        raise GrokBotError("Grok Bot access token is in an unexpected format.") from None
+     if not raw.startswith(b"v10"):
+         raise GrokBotError("Grok Bot access token is not in the expected v10 envelope.")
+     try:

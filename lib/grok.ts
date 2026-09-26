@@ -1,16 +1,28 @@
 import type { AgentId, NegotiationEvent } from "./commerce";
 import { parseTurn, type ParsedTurn } from "./parse-turn";
 import { systemPrompt, userPrompt } from "./prompts";
+import { grokBotReady, grokBotTurn } from "./grok-bot";
+import { GrokError } from "./grok-error";
 
-export class GrokError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "GrokError";
-  }
+export { GrokError } from "./grok-error";
+
+function provider(): string {
+  return process.env.GROK_PROVIDER?.trim() || "grok-bot";
 }
 
-export function grokConfigured(): boolean {
-  return Boolean(process.env.XAI_API_KEY && process.env.XAI_API_KEY.trim());
+export async function grokStatus() {
+  const selected = provider();
+  if (process.env.VERCEL && selected === "grok-bot") return { mode: "unavailable", model: null, provider: "grok-bot", message: "Connect your own Grok Bot to start a live round, or try the recorded demo." };
+  try {
+    if (selected === "replay") return { mode: "replay", model: null, provider: selected, message: null };
+    if (selected === "grok-bot") await grokBotReady();
+    else if (selected === "xai") {
+      if (!process.env.XAI_API_KEY?.trim()) throw new GrokError("Set XAI_API_KEY to use the xAI API, or select the Grok Bot provider.");
+    } else throw new GrokError("GROK_PROVIDER must be grok-bot, xai, or replay.");
+    return { mode: "grok", model: selected === "grok-bot" ? "Grok Bot" : process.env.XAI_MODEL?.trim() || "grok-4.6", provider: selected, message: null };
+  } catch (error) {
+    return { mode: "unavailable", model: null, provider: selected, message: error instanceof GrokError ? error.message : "Grok could not check the connection." };
+  }
 }
 
 export async function grokTurn(input: {
@@ -19,6 +31,8 @@ export async function grokTurn(input: {
   events: NegotiationEvent[];
   note?: string;
 }): Promise<ParsedTurn> {
+  if (provider() === "grok-bot") return grokBotTurn(input);
+  if (provider() !== "xai") throw new GrokError("Live Grok is not enabled. Select grok-bot or xai as GROK_PROVIDER.");
   const key = process.env.XAI_API_KEY?.trim();
   if (!key) throw new GrokError("XAI_API_KEY is not set");
 

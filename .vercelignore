@@ -1,0 +1,11 @@
+my-app
+data
+supabase
+.env*
+scripts
+docs
+lib/seed.ts
+lib/seed.test.ts
+lib/rules.ts
+lib/rules.test.ts
+lib/types.ts

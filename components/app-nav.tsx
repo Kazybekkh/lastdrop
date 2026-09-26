@@ -4,6 +4,8 @@ const LINKS = [
   { href: "/", id: "catalog", label: "Catalog" },
   { href: "/shop", id: "shop", label: "Shop" },
   { href: "/floor", id: "match", label: "Match" },
+  { href: "/group", id: "group", label: "Shared room" },
+  { href: "/connect", id: "connect", label: "Connect Grok" },
 ] as const;
 
 export function AppNav({ current }: { current: (typeof LINKS)[number]["id"] }) {

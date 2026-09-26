@@ -6,6 +6,7 @@ import { formatGbpSpeech } from "@/lib/format";
 import { CATALOG, applyOrder, findByHandle, readProduct, type ShopOrder } from "@/lib/shop";
 import { readPostedOrder } from "@/lib/shop-session";
 import { StoreBar } from "./store-home";
+import { ProductImage } from "./product-image";
 
 export function ProductPage({ handle }: { handle: string }) {
   const [posted, setPosted] = useState<ShopOrder | null>(null);
@@ -37,7 +38,7 @@ export function ProductPage({ handle }: { handle: string }) {
     <div className="store">
       <StoreBar />
       <main className="pdp">
-        <span className={`swatch swatch-${product.handle} swatch-lg`} aria-hidden="true" />
+        <ProductImage handle={product.handle} className="pdp-visual" sizes="(max-width: 640px) calc(100vw - 32px), 600px" priority />
         <div>
           <p className="office-kicker">{product.vendor} · {product.productType}</p>
           <h1>{product.title}</h1>

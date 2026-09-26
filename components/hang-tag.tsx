@@ -1,5 +1,6 @@
 import { formatGbpExact, formatGbpSpeech } from "@/lib/format";
 import { LOT } from "@/lib/lot";
+import { ProductImage } from "./product-image";
 
 export function HangTag({
   floorPence,
@@ -20,11 +21,15 @@ export function HangTag({
 
   return (
     <article className="tag">
-      <div className="lot-visual" aria-hidden="true" />
-      <p className="eyebrow">Unmatched · week {LOT.weeksOnRail}</p>
-      <h2>{LOT.title}</h2>
-      <p className="why">{LOT.why}</p>
-      <p className="spec-line">{LOT.cloth} · {LOT.origin}</p>
+      <div className="lot-overview">
+        <ProductImage handle="trucker-jacket" className="lot-visual" sizes="(max-width: 640px) calc(100vw - 54px), 268px" priority />
+        <div>
+          <p className="eyebrow">Unmatched · week {LOT.weeksOnRail}</p>
+          <h2>{LOT.title}</h2>
+          <p className="why">{LOT.why}</p>
+          <p className="spec-line">{LOT.cloth} · {LOT.origin}</p>
+        </div>
+      </div>
       <dl className="facts">
         <div>
           <dt>Units</dt>

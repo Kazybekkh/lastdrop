@@ -13,8 +13,10 @@ import { HangTag } from "./hang-tag";
 import { RailBook } from "./rail-book";
 import { ReceiptCard } from "./receipt-card";
 import { Tape } from "./tape";
+import Link from "next/link";
+import { getConnection, bridgeRequest, connectedTurn } from "@/lib/grok-connection";
 
-type Mode = "replay" | "grok" | "loading";
+type Mode = "replay" | "grok" | "loading" | "unavailable";
 type Phase = "briefing" | "opening" | "counter" | "responses" | "decision" | "error" | "receipt";
 type Beat = "idle" | "think" | "read";
 
@@ -29,6 +31,7 @@ const LIVE_OPENING: AgentId[] = ["merchant", "denim", "bargain", "premium"];
 export function DropFloor() {
   const [mode, setMode] = useState<Mode>("loading");
   const [model, setModel] = useState<string | null>(null);
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
   const [floorPence, setFloorPence] = useState(LOT.defaultFloorPence);
   const [events, setEvents] = useState<NegotiationEvent[]>([]);
   const [phase, setPhase] = useState<Phase>("briefing");
@@ -53,15 +56,18 @@ export function DropFloor() {
 
   useEffect(() => {
     let cancel = false;
-    fetch("/api/mode")
-      .then((res) => res.json())
-      .then((data: { mode?: string; model?: string | null }) => {
+    readConnection()
+      .then((data) => {
         if (cancel) return;
-        setMode(data.mode === "grok" ? "grok" : "replay");
-        setModel(data.model ?? null);
+        setMode(data.mode);
+        setModel(data.model);
+        setConnectionMessage(data.message);
       })
       .catch(() => {
-        if (!cancel) setMode("replay");
+        if (!cancel) {
+          setMode("unavailable");
+          setConnectionMessage("Could not check the Grok connection. Try again.");
+        }
       });
     return () => {
       cancel = true;
@@ -113,19 +119,24 @@ export function DropFloor() {
     }
   }
 
-  async function onPitch() {
-    let next: "replay" | "grok" = mode === "grok" ? "grok" : "replay";
-    if (mode === "loading") {
-      try {
-        const res = await fetch("/api/mode");
-        const data = (await res.json()) as { mode?: string; model?: string | null };
-        next = data.mode === "grok" ? "grok" : "replay";
-        setModel(data.model ?? null);
-      } catch {
-        next = "replay";
-      }
+  async function checkConnection(): Promise<Exclude<Mode, "loading">> {
+    setMode("loading");
+    try {
+      const data = await readConnection();
+      setMode(data.mode);
+      setModel(data.model);
+      setConnectionMessage(data.message);
+      return data.mode;
+    } catch {
+      setMode("unavailable");
+      setConnectionMessage("Could not check the Grok connection. Try again.");
+      return "unavailable";
     }
-    start(next);
+  }
+
+  async function onPitch() {
+    const next = await checkConnection();
+    if (next !== "unavailable") start(next);
   }
 
   useEffect(() => {
@@ -273,7 +284,7 @@ export function DropFloor() {
     }
   }
 
-  const wire = wireCopy(mode, model);
+  const wire = wireCopy(mode, model, connectionMessage);
   const winner = book.winner;
 
   return (
@@ -312,10 +323,21 @@ export function DropFloor() {
         <RailBook book={book} floorPence={floorPence} />
       </main>
       <footer className="dock">
-        {phase === "briefing" && (
+        {phase === "briefing" && mode !== "unavailable" && (
           <button type="button" className="primary" onClick={() => void onPitch()} disabled={mode === "loading"}>
             {mode === "loading" ? "Checking the wire…" : "Pitch this lot"}
           </button>
+        )}
+        {phase === "briefing" && mode === "unavailable" && (
+          <div className="dock-error">
+            <Link href="/connect" className="primary">Connect your Grok Bot</Link>
+            <button type="button" className="primary" onClick={() => void checkConnection()}>
+              Check connection again
+            </button>
+            <button type="button" className="ghost" onClick={() => start("replay")}>
+              Play the recorded round
+            </button>
+          </div>
         )}
         {(phase === "opening" || phase === "responses") && (
           <p className="dock-status">Matching. Buyers are taking turns.</p>
@@ -323,6 +345,9 @@ export function DropFloor() {
         {phase === "error" && (
           <div className="dock-error">
             <p>{error ?? "The wire to Grok failed."}</p>
+            <button type="button" className="ghost" onClick={() => { reset(); void checkConnection(); }}>
+              Check connection again
+            </button>
             <button type="button" className="primary" onClick={() => start("replay")}>
               Play the recorded round
             </button>
@@ -387,6 +412,7 @@ function bargainShouldReturn(events: NegotiationEvent[], floor: number): boolean
 }
 
 async function requestLiveTurn(step: Step, events: NegotiationEvent[], floor: number): Promise<Omit<NegotiationEvent, "at" | "agentId">> {
+  if (getConnection()) return connectedTurn({ agentId: step.agentId, events, floorPricePence: floor, note: step.note });
   const res = await fetch("/api/turn", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -416,11 +442,36 @@ async function requestLiveTurn(step: Step, events: NegotiationEvent[], floor: nu
   };
 }
 
-function wireCopy(mode: Mode, model: string | null): { title: string; detail: string } {
+async function readConnection(): Promise<{ mode: Exclude<Mode, "loading">; model: string | null; message: string | null }> {
+  const connection = getConnection();
+  if (connection) {
+    try {
+      const data = await bridgeRequest("/bots", connection.token);
+      if (!data.bots.some((bot: { id: string }) => bot.id === connection.botId)) throw new Error("Choose an existing bot on the Connect Grok page.");
+      return { mode: "grok", model: `Grok Bot · ${connection.botName}`, message: null };
+    } catch (error) { return { mode: "unavailable", model: null, message: error instanceof Error ? error.message : "Reconnect your Grok Bot." }; }
+  }
+  const res = await fetch("/api/mode", { cache: "no-store" });
+  if (!res.ok) throw new Error("Could not check the Grok connection.");
+  const data = await res.json();
+  return {
+    mode: data.mode === "grok" || data.mode === "replay" ? data.mode : "unavailable",
+    model: typeof data.model === "string" ? data.model : null,
+    message: typeof data.message === "string" ? data.message : null,
+  };
+}
+
+function wireCopy(mode: Mode, model: string | null, message: string | null): { title: string; detail: string } {
   if (mode === "loading") {
     return {
       title: "Checking the wire",
-      detail: "Looking for an XAI_API_KEY. The floor rules are already in the room.",
+      detail: "Checking the Grok connection. The floor rules are already in the room.",
+    };
+  }
+  if (mode === "unavailable") {
+    return {
+      title: "Grok needs attention",
+      detail: message ?? "Grok is not connected. Check the connection or choose the recorded round.",
     };
   }
   if (mode === "grok") {
