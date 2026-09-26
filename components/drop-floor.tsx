@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CAST } from "@/lib/cast";
 import { buildBook, type AgentId, type NegotiationEvent, type Receipt } from "@/lib/commerce";
 import { formatGbpExact, formatGbpSpeech } from "@/lib/format";
 import { LOT } from "@/lib/lot";
 import { replayOpening, replayResponses } from "@/lib/replay";
+import { wholesaleFromReceipt } from "@/lib/shop";
+import { savePostedOrder } from "@/lib/shop-session";
 import { HangTag } from "./hang-tag";
 import { RailBook } from "./rail-book";
 import { ReceiptCard } from "./receipt-card";
@@ -39,6 +42,7 @@ export function DropFloor() {
   const [counterLine, setCounterLine] = useState("£36 on all 300. You are buying the cloth, not a leftover.");
   const [counterNote, setCounterNote] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [shopOrderName, setShopOrderName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const eventsRef = useRef(events);
@@ -257,6 +261,9 @@ export function DropFloor() {
         setSaving(false);
         return;
       }
+      const posted = wholesaleFromReceipt(data.receipt);
+      savePostedOrder(posted);
+      setShopOrderName(posted.name);
       setReceipt(data.receipt);
       setPhase("receipt");
       setSaving(false);
@@ -273,7 +280,11 @@ export function DropFloor() {
     <div className="stage">
       <header className="top">
         <div>
-          <p className="eyebrow">Fleek London · 26 Sep 2026</p>
+          <p className="eyebrow">
+            <Link href="/">Harbor & Co.</Link>
+            {" · "}
+            <Link href="/shop">Storefront</Link>
+          </p>
           <h1>The Last Drop</h1>
           <p className="pitch">Shops don&apos;t have a stock problem. They have a matchmaking problem.</p>
         </div>
@@ -366,7 +377,7 @@ export function DropFloor() {
         {error && phase !== "error" && <p className="counter-note">{error}</p>}
       </footer>
       {phase === "receipt" && receipt && (
-        <ReceiptCard receipt={receipt} recorded={mode !== "grok"} onClose={reset} />
+        <ReceiptCard receipt={receipt} recorded={mode !== "grok"} shopOrderName={shopOrderName} onClose={reset} />
       )}
     </div>
   );

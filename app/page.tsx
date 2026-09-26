@@ -1,5 +1,5 @@
-import { DropFloor } from "@/components/drop-floor";
+import { ShopAdmin } from "@/components/shop-admin";
 
 export default function Page() {
-  return <DropFloor />;
+  return <ShopAdmin />;
 }
