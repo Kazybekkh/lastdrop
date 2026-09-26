@@ -318,15 +318,12 @@ h3 { margin: 0; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppe
 .refused em { font-style: normal; color: var(--block); font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; }
 
 .dock {
-  position: sticky;
-  bottom: 12px;
   margin-top: 16px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
 }
 .primary, .ghost {
   border: 0;
