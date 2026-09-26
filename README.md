@@ -62,13 +62,30 @@ MIT-licensed [Last Drop fork of grok-bot-skill](https://github.com/Kazybekkh/gro
 After pairing, press **Create or open demo room**. Edit the lot, floor, and
 buyer budgets; setup creates missing teammates and a native four-bot group,
 or verifies and reuses an exact match. It does not start a round automatically.
-In `/group`, review the brief and send it. Grok's bots negotiate in their native
-group, and the same authored messages appear here. Follow-up and fictional
-approval messages can now be sent from the shared room too.
+In `/group`, press **Start autonomous round**. Grok's bots choose their own bids
+and can withdraw when a deal does not suit them. The connector validates each
+bot's structured offer against the floor, budget and available stock. Select one
+buyer or a compatible split, then **Approve selected deal**, or say exactly
+**approve** / **approve best deal** in the native chat to select the best current
+compatible offers. Questions such as “approve?” do not approve a deal.
 
-The shared-room transcript does not create Shopify orders or independently
-adjudicate natural-language bids. The deterministic floor/order demo below is
-a separate workflow. Remote judges still need a screen share of the paired Mac;
+The merchant must acknowledge the locked allocation in its own native message
+before the app displays **Deal acknowledged**. Losing resellers are then removed
+from the actual Grok group, preserving their bots and message history. A reseller
+that declares withdrawal can also leave autonomously before approval. The
+merchant and winning resellers remain. A new negotiation after departures needs
+a fresh four-bot room (choose a new room name in Connect Grok).
+
+The connector follows the chat every four seconds even with the website closed.
+Its private round state lives under `~/.lastdrop/rounds`, scoped by the site origin,
+with no pairing code or Grok credential stored there. It records mutation intent
+before native sends, never blindly resends an uncertain message, and verifies
+native membership before showing that a bot left. Keep the Mac connector running;
+stopping it pauses this automation. The single downloadable file bundles both the
+skill CLI and `scripts/grok-round.mjs`.
+
+The shared-room demo does not create Shopify orders or make payments. The
+floor/order demo below is a separate workflow. Remote judges still need a screen share of the paired Mac;
 this feature does not publish private Grok transcripts to a public server.
 
 To refresh the bundled CLI from a sibling fork checkout, run
@@ -100,7 +117,8 @@ in `docs/product-imagery.md`.
 | `SHOPIFY_STORE_DOMAIN` | No | Leave blank. The demo shop is the Harbor & Co. fixture. |
 | `SHOPIFY_ADMIN_ACCESS_TOKEN` | No | Leave blank. The catalog is shaped like a Shopify product export. |
 
-The round and the wholesale order live in the browser session. Supabase is not connected.
+The separate floor's round and wholesale order live in the browser session.
+Native shared-room state persists locally in the connector. Supabase is not connected.
 
 ## Separate negotiation-floor demo
 

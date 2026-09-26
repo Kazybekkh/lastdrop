@@ -101,3 +101,45 @@ it("rejects native group responses with missing, duplicate or extra members", as
     expect(cli).toHaveBeenCalledTimes(1);
   }
 });
+
+it("exposes lifecycle only through authenticated requests and forwards the exact selected allocation", async () => {
+  const round = { roundId: "round-1", botId: group.id, status: "negotiating" };
+  const rounds = { state: vi.fn().mockResolvedValue(round), start: vi.fn().mockResolvedValue(round), approve: vi.fn().mockResolvedValue(round), tick: vi.fn() };
+  const handle = createHandler({ origin, token, cli: vi.fn(), rounds });
+  expect((await request(handle, "/capabilities")).body.features).toContain("native-group-lifecycle");
+  expect((await request(handle, `/group/state?botId=${group.id}`)).body).toEqual({ round });
+  expect((await request(handle, "/group/approve", { botId: group.id, roundId: "round-1", offerIds: ["offer-2"] })).body).toEqual({ round });
+  expect(rounds.approve).toHaveBeenCalledWith({ botId: group.id, roundId: "round-1", offerIds: ["offer-2"] });
+  expect((await request(handle, "/group/approve", { botId: group.id, roundId: "round-1", offerIds: ["offer-2", "offer-2"] })).status).toBe(400);
+  expect((await request(handle, `/group/state?botId=${group.id}`, undefined, { origin, authorization: "Bearer wrong" })).status).toBe(401);
+  expect(rounds.state).toHaveBeenCalledTimes(1);
+});
+
+it("requires all four distinct roles before starting autonomous work", async () => {
+  const rounds = { start: vi.fn().mockResolvedValue({ roundId: "round-1" }) };
+  const handle = createHandler({ origin, token, cli: vi.fn(), rounds });
+  const valid = members.map((member, i) => ({ ...member, role: ["merchant", "denim", "bargain", "premium"][i] }));
+  expect((await request(handle, "/group/round", { botId: group.id, config: DEFAULT_DEMO_CONFIG, members: valid })).status).toBe(200);
+  expect((await request(handle, "/group/round", { botId: group.id, config: DEFAULT_DEMO_CONFIG, members: valid.map(member => ({ ...member, role: "merchant" })) })).status).toBe(400);
+  expect(rounds.start).toHaveBeenCalledTimes(1);
+});
+
+it("uses one mutation lock for autonomous ticks and browser actions", async () => {
+  let finishTick!: () => void;
+  const rounds = { tick: vi.fn().mockImplementation(() => new Promise<void>(resolve => { finishTick = resolve; })), approve: vi.fn() };
+  const handle = createHandler({ origin, token, cli: vi.fn(), rounds });
+  const pending = handle.tick();
+  expect((await request(handle, "/group/approve", { botId: group.id, roundId: "round-1", offerIds: ["offer-2"] })).status).toBe(409);
+  await handle.tick();
+  expect(rounds.tick).toHaveBeenCalledTimes(1);
+  expect(rounds.approve).not.toHaveBeenCalled();
+  finishTick();
+  await pending;
+});
+
+it("keeps a merchant-only native room readable and sendable after resellers leave", async () => {
+  const cli = vi.fn().mockResolvedValueOnce({ group: { ...group, memberIds: [members[0].id] }, members: [members[0]] }).mockResolvedValueOnce({ accepted: true });
+  const result = await request(handler(cli), "/group/send", { botId: group.id, prompt: "Summarize the closed round." });
+  expect(result.status).toBe(200);
+  expect(result.body.accepted).toBe(true);
+});
