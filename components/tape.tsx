@@ -21,11 +21,11 @@ export function Tape({
   return (
     <section className="tape" aria-live="polite" ref={scroller}>
       <header className="tape-head">
-        <h2>The floor</h2>
-        <p>Four desks. One rail. They talk freely. The price does not.</p>
+        <h2>Negotiation</h2>
+        <p>They can say any price. Only a bid at or above the floor can win.</p>
       </header>
       {events.length === 0 && !thinking && (
-        <p className="quiet">The floor is quiet. Pitch the lot and the desks wake up, one at a time.</p>
+        <p className="quiet">No one is talking yet. Start the match and the buyers answer one at a time.</p>
       )}
       <ol>
         {events.map((event, index) => {

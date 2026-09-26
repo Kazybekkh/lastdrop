@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatGbpSpeech } from "@/lib/format";
 import { CATALOG, applyOrder, readProduct, type ShopOrder } from "@/lib/shop";
 import { readPostedOrder } from "@/lib/shop-session";
+import { AppNav } from "./app-nav";
 
 export function StoreHome() {
   const [posted, setPosted] = useState<ShopOrder | null>(null);
@@ -17,11 +18,11 @@ export function StoreHome() {
 
   return (
     <div className="store">
-      <StoreBar />
+      <AppNav current="shop" />
       <header className="store-hero">
-        <p className="office-kicker">Harbor & Co. · est. Hackney</p>
-        <h1>Cloth for people who stay.</h1>
-        <p>Four styles. One of them has been sitting in the warehouse since July.</p>
+        <p className="office-kicker">Harbor & Co.</p>
+        <h1>Retail, as the customer sees it.</h1>
+        <p>One of these is selling. One has been waiting nine weeks for a buyer.</p>
       </header>
       <ul className="store-grid">
         {products.map((product) => {
@@ -48,16 +49,5 @@ export function StoreHome() {
 }
 
 export function StoreBar() {
-  return (
-    <div className="store-bar">
-      <Link href="/shop" className="store-mark">
-        Harbor & Co.
-      </Link>
-      <nav>
-        <Link href="/shop">Shop</Link>
-        <Link href="/">Admin</Link>
-        <Link href="/floor">The Drop</Link>
-      </nav>
-    </div>
-  );
+  return <AppNav current="shop" />;
 }

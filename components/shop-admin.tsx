@@ -14,6 +14,7 @@ import {
   type ShopOrder,
 } from "@/lib/shop";
 import { readPostedOrder } from "@/lib/shop-session";
+import { AppNav } from "./app-nav";
 
 export function ShopAdmin() {
   const [posted, setPosted] = useState<ShopOrder | null>(null);
@@ -30,23 +31,14 @@ export function ShopAdmin() {
 
   return (
     <div className="office">
-      <header className="office-bar">
-        <div>
-          <p className="office-kicker">Harbor & Co. · Hackney</p>
-          <strong>Catalog</strong>
-        </div>
-        <nav className="office-nav">
-          <Link href="/shop">Storefront</Link>
-          <Link href="/floor">The Drop</Link>
-        </nav>
-      </header>
+      <AppNav current="catalog" />
       <p className="sim-banner">
         Simulated Shopify catalog. No store token is connected, so this is Harbor & Co.&apos;s fixture, not a live Admin API.
       </p>
       <main className="office-main">
         {hero && heroRead && (
           <section className={heroRead.dead ? "dead-hero" : "dead-hero clear"}>
-            <p className="office-kicker">{heroRead.dead ? "Dead stock" : "Catalog"}</p>
+            <p className="office-kicker">{heroRead.dead ? "No buyer yet" : "Matched"}</p>
             <h1>{hero.title}</h1>
             <p className="dead-lede">
               {heroRead.dead
@@ -76,7 +68,7 @@ export function ShopAdmin() {
                 Pitch this lot
               </Link>
             ) : (
-              <p className="cleared">The run has left the rail. The wholesale order is in the book below.</p>
+              <p className="cleared">Matched. The wholesale order is in the book below.</p>
             )}
           </section>
         )}

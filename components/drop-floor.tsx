@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CAST } from "@/lib/cast";
 import { buildBook, type AgentId, type NegotiationEvent, type Receipt } from "@/lib/commerce";
@@ -9,6 +8,7 @@ import { LOT } from "@/lib/lot";
 import { replayOpening, replayResponses } from "@/lib/replay";
 import { wholesaleFromReceipt } from "@/lib/shop";
 import { savePostedOrder } from "@/lib/shop-session";
+import { AppNav } from "./app-nav";
 import { HangTag } from "./hang-tag";
 import { RailBook } from "./rail-book";
 import { ReceiptCard } from "./receipt-card";
@@ -278,14 +278,11 @@ export function DropFloor() {
 
   return (
     <div className="stage">
+      <AppNav current="match" />
       <header className="top">
         <div>
-          <p className="eyebrow">
-            <Link href="/">Harbor & Co.</Link>
-            {" · "}
-            <Link href="/shop">Storefront</Link>
-          </p>
-          <h1>The Last Drop</h1>
+          <p className="eyebrow">Three buyers. One lot. A floor they cannot cross.</p>
+          <h1>Find a buyer for what isn&apos;t selling.</h1>
           <p className="pitch">Shops don&apos;t have a stock problem. They have a matchmaking problem.</p>
         </div>
         <p className={mode === "grok" ? "badge live" : "badge"}>{wire.title}</p>
@@ -321,7 +318,7 @@ export function DropFloor() {
           </button>
         )}
         {(phase === "opening" || phase === "responses") && (
-          <p className="dock-status">On the floor. Desks are taking turns.</p>
+          <p className="dock-status">Matching. Buyers are taking turns.</p>
         )}
         {phase === "error" && (
           <div className="dock-error">

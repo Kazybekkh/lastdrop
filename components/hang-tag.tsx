@@ -20,9 +20,8 @@ export function HangTag({
 
   return (
     <article className="tag">
-      <div className="tag-string" aria-hidden="true" />
-      <div className="tag-hole" aria-hidden="true" />
-      <p className="eyebrow">Week {String(LOT.weeksOnRail).padStart(2, "0")} on the rail</p>
+      <div className="lot-visual" aria-hidden="true" />
+      <p className="eyebrow">Unmatched · week {LOT.weeksOnRail}</p>
       <h2>{LOT.title}</h2>
       <p className="why">{LOT.why}</p>
       <p className="spec-line">{LOT.cloth} · {LOT.origin}</p>
@@ -91,8 +90,8 @@ export function HangTag({
       </label>
       <p className="floor-note">
         {locked
-          ? "Floor is locked for this round. Bids under it are stamped and cannot win."
-          : "Leave this at £22. Len will offer £16, and the rail will refuse him."}
+          ? "Floor is locked. Anything under it is refused and cannot become the match."
+          : "Leave this at £22. A £16 bid is refused and can never win."}
       </p>
     </article>
   );
