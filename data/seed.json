@@ -1,0 +1,77 @@
+{
+  "lots": [
+    {
+      "id": "lot-1",
+      "title": "Placeholder lot 1",
+      "description": "Replace with researched deadstock.",
+      "category": "placeholder",
+      "quantity": 1,
+      "sizes": [],
+      "condition": "unknown",
+      "floor_price": 0,
+      "market_price_note": null,
+      "days_unsold": 0,
+      "status": "open"
+    },
+    {
+      "id": "lot-2",
+      "title": "Placeholder lot 2",
+      "description": "Replace with researched deadstock.",
+      "category": "placeholder",
+      "quantity": 1,
+      "sizes": [],
+      "condition": "unknown",
+      "floor_price": 0,
+      "market_price_note": null,
+      "days_unsold": 0,
+      "status": "open"
+    },
+    {
+      "id": "lot-3",
+      "title": "Placeholder lot 3",
+      "description": "Replace with researched deadstock.",
+      "category": "placeholder",
+      "quantity": 1,
+      "sizes": [],
+      "condition": "unknown",
+      "floor_price": 0,
+      "market_price_note": null,
+      "days_unsold": 0,
+      "status": "open"
+    }
+  ],
+  "bots": [
+    {
+      "id": "merchant",
+      "name": "Merchant bot",
+      "role": "merchant",
+      "personality": "Wants the highest price and never reveals the floor.",
+      "wants": "The highest price the resellers will pay.",
+      "max_budget": null
+    },
+    {
+      "id": "denim-dan",
+      "name": "Denim Dan",
+      "role": "reseller",
+      "personality": "Denim hunter, fair but fussy about authenticity.",
+      "wants": "Authentic denim at a fair price.",
+      "max_budget": null
+    },
+    {
+      "id": "bargain-bea",
+      "name": "Bargain Bea",
+      "role": "reseller",
+      "personality": "Lowballs and walks away if pushed.",
+      "wants": "The lowest price she can get.",
+      "max_budget": null
+    },
+    {
+      "id": "premium-priya",
+      "name": "Premium Priya",
+      "role": "reseller",
+      "personality": "Pays more for grade A and is snobby about it.",
+      "wants": "Grade A stock, and she will pay more for it.",
+      "max_budget": null
+    }
+  ]
+}
